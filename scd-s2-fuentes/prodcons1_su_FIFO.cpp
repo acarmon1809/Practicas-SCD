@@ -3,11 +3,11 @@
 // Sistemas concurrentes y Distribuidos.
 // Seminario 2. Introducción a los monitores en C++11.
 //
-// Archivo: prodcons1_su.cpp
+// Archivo: prodcons1_su_FIFO.cpp
 //
 // Ejemplo de un monitor en C++11 con semántica SU, para el problema
 // del productor/consumidor, con productor y consumidor únicos.
-// Opcion LIFO
+// Opcion FIFO
 //
 // Historial:
 // Creado el 30 Sept de 2022. (adaptado de prodcons2_su.cpp)
@@ -106,7 +106,9 @@ class ProdConsSU1 : public HoareMonitor
    num_celdas_total = 10;   //   núm. de entradas del buffer
  int                        // variables permanentes
    buffer[num_celdas_total],//   buffer de tamaño fijo, con los datos
-   primera_libre ;          //   indice de celda de la próxima inserción ( == número de celdas ocupadas)
+   primera_libre,          //   indice de celda de la próxima inserción ( == número de celdas ocupadas)
+   
+   primera_ocupada ; //ANIADIMOS PARA EL FIFO
 
  CondVar                    // colas condicion:
    ocupadas,                //  cola donde espera el consumidor (n>0)
@@ -122,6 +124,8 @@ class ProdConsSU1 : public HoareMonitor
 ProdConsSU1::ProdConsSU1(  )
 {
    primera_libre = 0 ;
+   primera_ocupada = 0;
+   
    ocupadas      = newCondVar();
    libres        = newCondVar();
 }
@@ -131,15 +135,13 @@ ProdConsSU1::ProdConsSU1(  )
 int ProdConsSU1::leer(  )
 {
    // esperar bloqueado hasta que 0 < primera_libre
-   if ( primera_libre == 0 )
+   if ( primera_libre == primera_ocupada ) //LO CAMBIAMOS PARA QUE NO LEA BASURA
       ocupadas.wait();
 
-   //cout << "leer: ocup == " << primera_libre << ", total == " << num_celdas_total << endl ;
-   assert( 0 < primera_libre  );
 
    // hacer la operación de lectura, actualizando estado del monitor
-   primera_libre-- ;
-   const int valor = buffer[primera_libre] ;
+   const int valor = buffer[primera_ocupada] ;
+   primera_ocupada = (primera_ocupada + 1) % num_celdas_total;
    
    // señalar al productor que hay un hueco libre, por si está esperando
    libres.signal();
@@ -152,15 +154,15 @@ int ProdConsSU1::leer(  )
 void ProdConsSU1::escribir( int valor )
 {
    // esperar bloqueado hasta que primera_libre < num_celdas_total
-   if ( primera_libre == num_celdas_total )
+   if ( (primera_libre + 1) % num_celdas_total == primera_ocupada ) //MODIFICAMOS ESTA CONDICION
       libres.wait();
 
    //cout << "escribir: ocup == " << primera_libre << ", total == " << num_celdas_total << endl ;
-   assert( primera_libre < num_celdas_total );
+
 
    // hacer la operación de inserción, actualizando estado del monitor
    buffer[primera_libre] = valor ;
-   primera_libre++ ;
+   primera_libre = (primera_libre + 1) % num_celdas_total;
 
    // señalar al consumidor que ya hay una celda ocupada (por si esta esperando)
    ocupadas.signal();
@@ -191,7 +193,7 @@ void funcion_hebra_consumidora( MRef<ProdConsSU1>  monitor )
 int main()
 {
    cout << "--------------------------------------------------------------------" << endl
-        << "Problema del productor-consumidor únicos (Monitor SU, buffer LIFO). " << endl
+        << "Problema del productor-consumidor únicos (Monitor SU, buffer FIFO). " << endl
         << "--------------------------------------------------------------------" << endl
         << flush ;
 
