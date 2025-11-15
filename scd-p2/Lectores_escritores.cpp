@@ -9,8 +9,10 @@
 using namespace std ;
 using namespace scd ;
 
-const int   num_lectores = 2,
-            num_escritores = 1;
+const int   num_lectores = 4,
+            num_escritores = 2;
+
+mutex mtx;
 
 class Lec_Esc : public HoareMonitor{
 
@@ -20,6 +22,7 @@ class Lec_Esc : public HoareMonitor{
         CondVar lectura, escritura;
     
     public:
+        Lec_Esc();
         void init_lectura(); //Para lectores
         void fin_lectura(); //Para lectores
 
@@ -72,21 +75,40 @@ void Lec_Esc::fin_lectura(){
     
 }
 
-void funcion_hebra_escritor( MRef<Lec_Esc> monitor){
+void funcion_hebra_escritor( MRef<Lec_Esc> monitor, int numero_escritor){
     while(true){
         monitor->init_escritura();
-        //COdigo de lectura
+        
+        
+        // informa de que comienza a producir
+        mtx.lock();
+        cout << "Escritor " << numero_escritor << " comienza a escribir" << endl;
+        mtx.unlock();
+        // espera bloqueada un tiempo igual a ''duracion' milisegundos
+        this_thread::sleep_for(chrono::milliseconds(aleatorio<2000,20000>()));
+        mtx.lock();
+        cout << "Escritor " << numero_escritor << " termina de escribir" << endl;
+        mtx.unlock();
         monitor->fin_escritura();
-        //resto codigo
     }
 }
 
-void funcion_hebra_lector( MRef<Lec_Esc> monitor){
+void funcion_hebra_lector( MRef<Lec_Esc> monitor, int numero_lector){
     while(true){
+
         monitor->init_lectura();
-        //Codigo de escritura
+
+        // Se quedan mas tiempo leyendo
+        chrono::milliseconds duracion( aleatorio<10,1000>() );
+        // informa de que comienza a producir
+        mtx.lock();
+        cout << "Lector " << numero_lector << " comienza a leer" << endl;
+        mtx.unlock();
+        this_thread::sleep_for(chrono::milliseconds(aleatorio<100,1000>()));
+        mtx.lock();
+        cout << "Lector " << numero_lector << " termina de leer" << endl;   
+        mtx.unlock();
         monitor->fin_lectura();
-        //resto codigo
     }
 }
 
@@ -96,10 +118,10 @@ int main()
    MRef<Lec_Esc> monitor = Create<Lec_Esc>();
 
    for(int i = 0; i < num_escritores; i++)
-      escritores[i] = thread(funcion_hebra_escritor, monitor);
+      escritores[i] = thread(funcion_hebra_escritor, monitor, i);
 
     for(int i = 0; i < num_lectores; i++)
-      lectores[i] = thread(funcion_hebra_lector, monitor);
+      lectores[i] = thread(funcion_hebra_lector, monitor, i);
 
 
 
