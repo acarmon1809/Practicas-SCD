@@ -98,8 +98,9 @@ void funcion_hebra_lector( MRef<Lec_Esc> monitor, int numero_lector){
 
         monitor->init_lectura();
 
-        // Se quedan mas tiempo leyendo
-        chrono::milliseconds duracion( aleatorio<10,1000>() );
+        // Crear una duración                                           //Esperar esa duración
+        //chrono::milliseconds duracion( aleatorio<10,1000>() );        //this_thread::sleep_for(duracion)
+
         // informa de que comienza a producir
         mtx.lock();
         cout << "Lector " << numero_lector << " comienza a leer" << endl;
