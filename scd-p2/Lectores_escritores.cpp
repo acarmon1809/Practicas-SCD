@@ -85,7 +85,7 @@ void funcion_hebra_escritor( MRef<Lec_Esc> monitor, int numero_escritor){
         cout << "Escritor " << numero_escritor << " comienza a escribir" << endl;
         mtx.unlock();
         // espera bloqueada un tiempo igual a ''duracion' milisegundos
-        this_thread::sleep_for(chrono::milliseconds(aleatorio<2000,20000>()));
+        this_thread::sleep_for(chrono::milliseconds(aleatorio<1000,2000>()));
         mtx.lock();
         cout << "Escritor " << numero_escritor << " termina de escribir" << endl;
         mtx.unlock();
@@ -108,7 +108,9 @@ void funcion_hebra_lector( MRef<Lec_Esc> monitor, int numero_lector){
         mtx.lock();
         cout << "Lector " << numero_lector << " termina de leer" << endl;   
         mtx.unlock();
-        monitor->fin_lectura();
+        monitor->fin_lectura();        
+        this_thread::sleep_for(chrono::milliseconds(aleatorio<100,1000>())); //Lo dejamos parado antes de seguir que sino nunca hay escritores.
+
     }
 }
 
