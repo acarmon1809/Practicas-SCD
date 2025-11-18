@@ -4,7 +4,6 @@
 #include <mutex>
 #include <random>
 #include "scd.h"
-//#define LIFO //Para compilar el código lifo
 using namespace std ;
 using namespace scd ;
 
@@ -14,18 +13,22 @@ using namespace scd ;
 const unsigned 
    num_items = 51 ,   // número de items
 	tam_vec   = 10 ;   // tamaño del buffer
-unsigned  
+   
+   unsigned  
    cont_prod[num_items] = {0}, // contadores de verificación: para cada dato, número de veces que se ha producido.
    cont_cons[num_items] = {0}, // contadores de verificación: para cada dato, número de veces que se ha consumido.
-   siguiente_dato       = 0 ;  // siguiente dato a producir en 'producir_dato' (solo se usa ahí)
+   siguiente_dato       = 0 ,  // siguiente dato a producir en 'producir_dato' (solo se usa ahí)
+   celdas_ocupadas = 0; //Elemenetos Aniadidos al vector pero no consumidos todavía
    
+mutex
+   mtx;
 
 Semaphore
    libres = tam_vec,
-   ocupadas = 0; //Numero entre 0 y tam_vec
-
-Semaphore
-   exclusion_mutua = 1;
+   ocupadas = 0, //Numero entre 0 y tam_vec
+   exclusion_mutua = 1,
+   impresora = 0, //Tienen que desbloquearla primero
+   productor = 0; //Se bloquea mientras se imprime
 
 //**********************************************************************
 // funciones comunes a las dos soluciones (fifo y lifo)
@@ -37,7 +40,9 @@ unsigned producir_dato()
    const unsigned dato_producido = siguiente_dato ;
    siguiente_dato++ ;
    cont_prod[dato_producido] ++ ;
+   mtx.lock();
    cout << "producido: " << dato_producido << endl << flush ;
+   mtx.unlock();
    return dato_producido ;
 }
 //----------------------------------------------------------------------
@@ -47,9 +52,9 @@ void consumir_dato( unsigned dato )
    assert( dato < num_items );
    cont_cons[dato] ++ ;
    this_thread::sleep_for( chrono::milliseconds( aleatorio<20,100>() ));
-
+   mtx.lock();
    cout << "                  consumido: " << dato << endl ;
-
+   mtx.unlock();
 }
 
 
@@ -75,46 +80,6 @@ void test_contadores()
 
 //----------------------------------------------------------------------
 
-#ifdef LIFO
-
-int
-   primera_libre = 0,
-   vec[tam_vec] = {0};
-
-void  funcion_hebra_productora(  )
-{
-   for( unsigned i = 0 ; i < num_items ; i++ )
-   {
-      int dato = producir_dato() ;
-      sem_wait(libres);
-      exclusion_mutua.sem_wait();
-      vec[primera_libre] = dato; //Aniadimos a la lista
-      primera_libre++; //Aumenta pues ahora leemos el siguiente
-      exclusion_mutua.sem_signal();
-      sem_signal(ocupadas);
-   }
-}
-
-//----------------------------------------------------------------------
-
-void funcion_hebra_consumidora(  )
-{
-   for( unsigned i = 0 ; i < num_items ; i++ )
-   {
-      int dato ;
-      sem_wait(ocupadas);
-      exclusion_mutua.sem_wait();
-      primera_libre--;
-      dato = vec[primera_libre];
-      exclusion_mutua.sem_signal();
-      sem_signal(libres);
-      consumir_dato( dato ) ;
-    }
-}
-//----------------------------------------------------------------------
-
-#else //Si no es LIFO usamos FIFO
-
 int
    primera_libre = 0,
    primera_ocupada = 0,
@@ -128,7 +93,12 @@ void  funcion_hebra_productora(  )
       sem_wait(libres);
       exclusion_mutua.sem_wait();
       vec[primera_libre] = dato; //Aniadimos a la lista
+      celdas_ocupadas++;
       primera_libre = (primera_libre + 1) % tam_vec; //Aumenta pues ahora leemos el siguiente
+      if(dato%5 == 0){
+         sem_signal(impresora);
+         sem_wait(productor);
+      }
       exclusion_mutua.sem_signal();
       sem_signal(ocupadas);
    }
@@ -148,10 +118,25 @@ void funcion_hebra_consumidora(  )
       exclusion_mutua.sem_signal(); 
       sem_signal(libres);
       consumir_dato( dato ) ;
+      sem_wait(exclusion_mutua); //Ya lo hemos consumido
+      celdas_ocupadas--;
+      sem_signal(exclusion_mutua);
     }
 }
 //----------------------------------------------------------------------
-#endif
+
+void funcion_hebra_impresora(){
+   
+   while (true){
+
+      sem_wait(impresora);
+      mtx.lock();
+      cout << "Celdas ocupadas: " << celdas_ocupadas << endl;
+      mtx.unlock();
+      sem_signal(productor);
+   }
+}
+
 int main()
 {
    cout << "-----------------------------------------------------------------" << endl
@@ -160,7 +145,8 @@ int main()
         << flush ;
 
    thread hebra_productora ( funcion_hebra_productora ),
-          hebra_consumidora( funcion_hebra_consumidora );
+          hebra_consumidora( funcion_hebra_consumidora ),
+          impresora( funcion_hebra_impresora );
 
    hebra_productora.join() ;
    hebra_consumidora.join() ;

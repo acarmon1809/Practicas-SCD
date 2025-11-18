@@ -105,11 +105,11 @@ void funcion_hebra_consumidora(  )
          sem_wait( seccion_critica );
             dato = buffer[primera_ocupada];
             primera_ocupada = (primera_ocupada+1) % tam_vector;
+            sem_signal( seccion_critica );
+            
+            sem_signal( libres );  // incrementa el semáforo con el número de celdas libres
+            consumir_dato( dato );
             num_casillas_ocupadas--;
-         sem_signal( seccion_critica );
-         
-      sem_signal( libres );  // incrementa el semáforo con el número de celdas libres
-      consumir_dato( dato );
    }
 }
 
