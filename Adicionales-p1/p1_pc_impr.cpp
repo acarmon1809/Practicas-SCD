@@ -11,7 +11,7 @@ using namespace scd ;
 // Variables globales
 
 const unsigned 
-   num_items = 51 ,   // número de items
+   num_items = 20 ,   // número de items
 	tam_vec   = 10 ;   // tamaño del buffer
    
    unsigned  
@@ -115,19 +115,18 @@ void funcion_hebra_consumidora(  )
       exclusion_mutua.sem_wait();
       dato = vec[primera_ocupada];   
       primera_ocupada = (primera_ocupada + 1) % tam_vec; 
+      celdas_ocupadas--;
       exclusion_mutua.sem_signal(); 
       sem_signal(libres);
+
       consumir_dato( dato ) ;
-      sem_wait(exclusion_mutua); //Ya lo hemos consumido
-      celdas_ocupadas--;
-      sem_signal(exclusion_mutua);
     }
 }
 //----------------------------------------------------------------------
 
 void funcion_hebra_impresora(){
    
-   while (true){
+   for(int i = 0; i < num_items/5; i++) {
 
       sem_wait(impresora);
       mtx.lock();
@@ -150,6 +149,7 @@ int main()
 
    hebra_productora.join() ;
    hebra_consumidora.join() ;
+   impresora.join();
 
    test_contadores();
 }
