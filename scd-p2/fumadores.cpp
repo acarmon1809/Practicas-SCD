@@ -12,7 +12,7 @@ using namespace scd ;
 // numero de fumadores 
 
 const int num_fumadores = 3 ;
-   
+mutex mtx;
 
 //-------------------------------------------------------------------------
 // Función que simula la acción de producir un ingrediente, como un retardo
@@ -24,16 +24,18 @@ int producir_ingrediente()
    chrono::milliseconds duracion_produ( aleatorio<10,100>() );
 
    // informa de que comienza a producir
+   mtx.lock();
    cout << "Estanquero : empieza a producir ingrediente (" << duracion_produ.count() << " milisegundos)" << endl;
-
+   mtx.unlock();
    // espera bloqueada un tiempo igual a ''duracion_produ' milisegundos
    this_thread::sleep_for( duracion_produ );
 
    const int num_ingrediente = aleatorio<0,num_fumadores-1>() ;
 
    // informa de que ha terminado de producir
+   mtx.lock();
    cout << "Estanquero : termina de producir ingrediente " << num_ingrediente << endl;
-
+   mtx.unlock();
    return num_ingrediente ;
 }
 
@@ -49,17 +51,17 @@ void fumar( int num_fumador )
    chrono::milliseconds duracion_fumar( aleatorio<20,200>() );
 
    // informa de que comienza a fumar
-
+   mtx.lock();
     cout << "Fumador " << num_fumador << "  :"
           << " empieza a fumar (" << duracion_fumar.count() << " milisegundos)" << endl;
-
+   mtx.unlock();
    // espera bloqueada un tiempo igual a ''duracion_fumar' milisegundos
    this_thread::sleep_for( duracion_fumar );
 
    // informa de que ha terminado de fumar
-
+   mtx.lock();
     cout << "Fumador " << num_fumador << "  : termina de fumar, comienza espera de ingrediente." << endl;
-
+   mtx.unlock();
 }
 
 class Estanco : public HoareMonitor
@@ -121,7 +123,9 @@ void funcion_hebra_estanquero( MRef<Estanco> monitor )
    while(true){
 
       int ingrediente = producir_ingrediente();
+      mtx.lock();
       cout << "Estanquero produce el ingrendiente " << ingrediente << endl;
+      mtx.unlock();
       monitor->ponerIngrediente(ingrediente);
       monitor->esperarRecogidaIngrediente();
 
@@ -137,7 +141,9 @@ void  funcion_hebra_fumador(MRef<Estanco> monitor, int num_fumador )
    {
       
       monitor->obtenerIngrediente(num_fumador);
+      mtx.lock();
       cout << "El fumador " << num_fumador << " retira su ingrediente" << endl; 
+      mtx.unlock();
       fumar(num_fumador); //Varios pueden fumar a la vez
 
    }

@@ -59,7 +59,9 @@ int producir_dato(int n_hebra)
    int k = item_producidos[n_hebra]; //Cuantos items ha producido esta hebra
    const unsigned dato_producido = n_hebra*p+k ;
    cont_prod[dato_producido] ++ ;
+   mtx.lock();
    cout << "producido: " << dato_producido << endl << flush ;
+   mtx.unlock();
    item_producidos[n_hebra]++;
    return dato_producido ;
 }
@@ -69,8 +71,9 @@ void consumir_dato( unsigned valor_consumir )
 {
    if ( num_items <= valor_consumir )
    {
+      mtx.lock();
       cout << " valor a consumir === " << valor_consumir << ", num_items == " << num_items << endl ;
-      
+      mtx.unlock();
    }
    cont_cons[valor_consumir] ++ ;
    this_thread::sleep_for( chrono::milliseconds( aleatorio<min_ms,max_ms>() ));
