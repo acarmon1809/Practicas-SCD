@@ -24,8 +24,11 @@ using namespace std::chrono ;
 
 const int
    num_filosofos = 5 ,              // número de filósofos 
-   num_filo_ten  = 2*num_filosofos, // número de filósofos y tenedores 
-   num_procesos  = num_filo_ten ;   // número de procesos total (por ahora solo hay filo y ten)
+   num_filo_ten  = 2*num_filosofos, // número de filósofos, tenedores
+   num_procesos  = num_filo_ten+1 ,   // número de procesos total 
+   etiq_levantarse = 100,
+   etiq_sentarse = 101,
+   id_camarero = 10;
 
 
 //**********************************************************************
@@ -51,21 +54,34 @@ void funcion_filosofos( int id )
    int peticion;
   while ( true )
   {
-    cout <<"Filósofo " <<id << " solicita ten. izq." <<id_ten_izq <<endl;
-    MPI_Ssend(&peticion, 1, MPI_INT, id_ten_izq, 0, MPI_COMM_WORLD);
 
-    cout <<"Filósofo " <<id <<" solicita ten. der." <<id_ten_der <<endl;
-    MPI_Ssend(&peticion, 1, MPI_INT, id_ten_der, 0, MPI_COMM_WORLD);
-
-    cout <<"Filósofo " <<id <<" comienza a comer" <<endl ;
-    sleep_for( milliseconds( aleatorio<10,100>() ) );
-
-    cout <<"Filósofo " <<id <<" suelta ten. izq. " <<id_ten_izq <<endl;
-    MPI_Ssend(&peticion, 1, MPI_INT, id_ten_izq, 1, MPI_COMM_WORLD);
-
-    cout<< "Filósofo " <<id <<" suelta ten. der. " <<id_ten_der <<endl;
-    MPI_Ssend(&peticion, 1, MPI_INT, id_ten_der, 1, MPI_COMM_WORLD);
-
+   //Sentarte en la mesa
+   cout <<"Filósofo " <<id << " solicita sentarse" <<endl;
+   MPI_Ssend(&peticion, 1, MPI_INT, id_camarero, etiq_sentarse, MPI_COMM_WORLD);
+   
+   //Coger lo tenedores
+   cout <<"Filósofo " <<id << " solicita ten. izq." <<id_ten_izq <<endl;
+   MPI_Ssend(&peticion, 1, MPI_INT, id_ten_izq, 0, MPI_COMM_WORLD);
+   
+   cout <<"Filósofo " <<id <<" solicita ten. der." <<id_ten_der <<endl;
+   MPI_Ssend(&peticion, 1, MPI_INT, id_ten_der, 0, MPI_COMM_WORLD);
+   
+   //Comenzar a comer
+   cout <<"Filósofo " <<id <<" comienza a comer" <<endl ;
+   sleep_for( milliseconds( aleatorio<10,100>() ) );
+   
+   //Suelta los tenedores
+   cout <<"Filósofo " <<id <<" suelta ten. izq. " <<id_ten_izq <<endl;
+   MPI_Ssend(&peticion, 1, MPI_INT, id_ten_izq, 1, MPI_COMM_WORLD);
+   
+   cout<< "Filósofo " <<id <<" suelta ten. der. " <<id_ten_der <<endl;
+   MPI_Ssend(&peticion, 1, MPI_INT, id_ten_der, 1, MPI_COMM_WORLD);
+   
+   //Levantarse de la mesa
+   cout <<"Filósofo " <<id << " solicita levantarse" <<endl;
+   MPI_Ssend(&peticion, 1, MPI_INT, id_camarero, etiq_levantarse, MPI_COMM_WORLD);
+   
+    //Comenzar a pensar
     cout << "Filosofo " << id << " comienza a pensar" << endl;
     sleep_for( milliseconds( aleatorio<10,100>() ) );
  }
@@ -88,6 +104,41 @@ void funcion_tenedores( int id )
   }
 }
 // ---------------------------------------------------------------------
+void funcion_camarero( int id ){
+    int sentados = 0;
+    int valor;
+    MPI_Status estado;
+    int etiq_aceptable; // Etiqueta que el Camarero está dispuesto a recibir
+
+    while(true){
+        // 1. DETERMINAR LA ETIQUETA ACEPTABLE (Espera Selectiva)
+        if (sentados == 4) {
+            // Si ya hay 4 sentados, SOLO aceptamos levantarse
+            etiq_aceptable = etiq_levantarse;
+        } else { // sentados < 4
+            // Si hay sitio, aceptamos cualquier cosa (sentarse o levantarse)
+            etiq_aceptable = MPI_ANY_TAG;
+        }
+
+        // 2. RECEPCIÓN: Solo intenta recibir la etiqueta aceptable
+        MPI_Recv(&valor, 1, MPI_INT, MPI_ANY_SOURCE, etiq_aceptable, MPI_COMM_WORLD, &estado);
+
+        // 3. PROCESAR EL MENSAJE RECIBIDO
+        switch(estado.MPI_TAG){
+            case etiq_sentarse:
+                // Si llegamos aquí, sabemos que sentados < 4
+                sentados++;
+                cout << "Camarero ha sentado al Filósofo " << estado.MPI_SOURCE << ". Sentados: " << sentados << endl;
+                break;
+            
+            case etiq_levantarse:
+                sentados--;
+                cout << "Camarero ha levantado al Filósofo " << estado.MPI_SOURCE << ". Sentados: " << sentados << endl;
+                break;
+        }
+    }
+}
+// ---------------------------------------------------------------------
 
 int main( int argc, char** argv )
 {
@@ -101,8 +152,10 @@ int main( int argc, char** argv )
    if ( num_procesos == num_procesos_actual )
    {
       // ejecutar la función correspondiente a 'id_propio'
-      if ( id_propio % 2 == 0 )          // si es par
+      if ( id_propio % 2 == 0 && id_propio != id_camarero)          // si es par
          funcion_filosofos( id_propio ); //   es un filósofo
+      else if(id_propio == id_camarero)
+         funcion_camarero(id_propio);
       else                               // si es impar
          funcion_tenedores( id_propio ); //   es un tenedor
    }
