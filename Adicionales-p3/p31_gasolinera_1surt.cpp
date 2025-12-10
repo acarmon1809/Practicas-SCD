@@ -14,7 +14,8 @@ const int
     etiq_empiza_repostar = 101,
     id_gasolinera = 0,
     num_surtidores = 4,
-    num_procesos = 11, //Debe ser mayor que 1 para que haya coches y gasolinera
+    num_coches = 10,
+    num_procesos = num_coches+1, //Debe ser mayor que 1 para que haya coches y gasolinera
     tiempo_min_repostar_ms = 20,
     tiempo_max_repostar_ms = 200,
     tiempo_min_fuera_ms    = 20,
