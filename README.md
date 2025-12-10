@@ -23,3 +23,16 @@ Utiliza el siguiente comando para compilar:
 
 ```bash
 g++ -std=c++11 -pthread -o ejecutable.exe codigo.cpp scd.cpp
+```
+
+Para compilar en la Práctica P3 se usa:
+
+```bash
+mpicxx -std=c++11 -o ejemplo_mpi_exe ejemplo.cpp
+```
+
+Para ejecutarlos:
+
+```bash
+mpiexec -n N .\ejemplo_mpi_exe
+```

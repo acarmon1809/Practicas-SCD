@@ -5,4 +5,4 @@ g++ -g holamundo.cpp -o holamundo.exe -I"C:\Program Files (x86)\Microsoft SDKs\M
 mpiexec -n 4 holamundo.exe
 
 Linux
-mpicxx-std=c++11-oholaholamundo.cpp
+mpicxx -std=c++11 -o holaholamundo.cpp
